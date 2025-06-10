@@ -79,6 +79,24 @@ class Head(nn.Module):
         out=wei@v
         return out
 
+class MultiHeadAttention(nn.Module):
+    def __init__(self,num_head,head_size):
+        super().__init__()
+        self.heads=nn.ModuleList([Head(head_size) for _ in range(num_head) ])
+        #self.proj=nn.Linear(head_size*num_head, n_embd)
+    def forward(self,x):
+        return torch.cat([h(x) for h in self.heads],dim=-1)
+
+class FeedForward(nn.Module):
+    def __init__(self, n_embd):
+        super().__init__()
+        self.net=nn.Sequential(
+            nn.Linear(n_embd,n_embd),
+            nn.Relu(),
+        )
+    def forward(self,x):
+        return self.net(x)
+
 # super simple bigram model
 class BigramLanguageModel(nn.Module):
 
@@ -87,7 +105,8 @@ class BigramLanguageModel(nn.Module):
         # each token directly reads off the logits for the next token from a lookup table
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.positional_embedding=torch.nn.Embedding(block_size,n_embd)
-        self.sa_head=Head(n_embd)
+        self.sa_head=MultiHeadAttention(4,n_embd//4)
+        self.forward = FeedForward(nn.Module)
         self.lm_head=nn.Linear(n_embd,vocab_size)
 
     def forward(self, idx, targets=None):
@@ -97,6 +116,7 @@ class BigramLanguageModel(nn.Module):
         pos_embd=self.positional_embedding(torch.arange(T,device=device))
         x= token_embd + pos_embd
         x=self.sa_head(x) # (B,T,C)
+        x=self.forward(x) # (B,T,C)
         # idx and targets are both (B,T) tensor of integers
         logits = self.lm_head(x) # (B,T,C)
 
