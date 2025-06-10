@@ -10,6 +10,7 @@ eval_interval = 300
 learning_rate = 1e-2
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 eval_iters = 200
+n_embd = 32 # the dimensionality of the character embedding vectors
 # ------------
 
 torch.manual_seed(1337)
@@ -63,12 +64,18 @@ class BigramLanguageModel(nn.Module):
     def __init__(self, vocab_size):
         super().__init__()
         # each token directly reads off the logits for the next token from a lookup table
-        self.token_embedding_table = nn.Embedding(vocab_size, vocab_size)
+        self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
+        self.positional_embedding=torch.nn.Embedding(block_size,n_embd)
+        self.lm_head=nn.linear(n_embd,vocab_size)
 
     def forward(self, idx, targets=None):
+        B,T=idx.shape
 
+        token_embd=self.token_embedding_table(idx)
+        pos_embd=self.positional_embedding(torch.arange(T,device=device))
+        x= token_embd + pos_embd
         # idx and targets are both (B,T) tensor of integers
-        logits = self.token_embedding_table(idx) # (B,T,C)
+        logits = self.lm_head(x) # (B,T,C)
 
         if targets is None:
             loss = None
