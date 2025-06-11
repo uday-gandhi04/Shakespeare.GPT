@@ -83,19 +83,34 @@ class MultiHeadAttention(nn.Module):
     def __init__(self,num_head,head_size):
         super().__init__()
         self.heads=nn.ModuleList([Head(head_size) for _ in range(num_head) ])
-        #self.proj=nn.Linear(head_size*num_head, n_embd)
+        self.proj=nn.Linear(n_embd, n_embd)
     def forward(self,x):
-        return torch.cat([h(x) for h in self.heads],dim=-1)
+        out = torch.cat([h(x) for h in self.heads], dim=-1)
+        out = self.proj(out)  # (B, T, C)
+        return out
 
 class FeedForward(nn.Module):
     def __init__(self, n_embd):
         super().__init__()
         self.net=nn.Sequential(
-            nn.Linear(n_embd,n_embd),
+            nn.Linear(n_embd,4*n_embd),
             nn.ReLU(),
+            nn.Linear(4*n_embd,n_embd),
         )
     def forward(self,x):
         return self.net(x)
+
+class Block(nn.Module):
+    def __init__(self,n_embd,n_head):
+        super().__init__()
+        head_size = n_embd // n_head
+        self.sa_head=MultiHeadAttention(n_head, head_size)
+        self.ffwd = FeedForward(n_embd)
+
+    def forward(self, x):
+        x= x+self.sa_head(x) # (B,T,C)
+        x=x+ self.ffwd(x) # (B,T,C)
+        return x
 
 # super simple bigram model
 class BigramLanguageModel(nn.Module):
@@ -105,8 +120,11 @@ class BigramLanguageModel(nn.Module):
         # each token directly reads off the logits for the next token from a lookup table
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.positional_embedding=torch.nn.Embedding(block_size,n_embd)
-        self.sa_head=MultiHeadAttention(4,n_embd//4)
-        self.ffwd = FeedForward(n_embd)
+        self.block=nn.Sequential(
+            Block(n_embd=n_embd, n_head=4),  # 4 heads
+            Block(n_embd=n_embd, n_head=4),  # 4 heads
+            Block(n_embd=n_embd, n_head=4),  # 4 heads
+        )
         self.lm_head=nn.Linear(n_embd,vocab_size)
 
     def forward(self, idx, targets=None):
@@ -115,9 +133,7 @@ class BigramLanguageModel(nn.Module):
         token_embd=self.token_embedding_table(idx)
         pos_embd=self.positional_embedding(torch.arange(T,device=device))
         x= token_embd + pos_embd
-        x=self.sa_head(x) # (B,T,C)
-        x=self.ffwd(x) # (B,T,C)
-        # idx and targets are both (B,T) tensor of integers
+        x = self.block(x)
         logits = self.lm_head(x) # (B,T,C)
 
         if targets is None:
