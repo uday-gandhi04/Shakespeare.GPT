@@ -92,7 +92,7 @@ class FeedForward(nn.Module):
         super().__init__()
         self.net=nn.Sequential(
             nn.Linear(n_embd,n_embd),
-            nn.Relu(),
+            nn.ReLU(),
         )
     def forward(self,x):
         return self.net(x)
@@ -106,7 +106,7 @@ class BigramLanguageModel(nn.Module):
         self.token_embedding_table = nn.Embedding(vocab_size, n_embd)
         self.positional_embedding=torch.nn.Embedding(block_size,n_embd)
         self.sa_head=MultiHeadAttention(4,n_embd//4)
-        self.forward = FeedForward(nn.Module)
+        self.ffwd = FeedForward(n_embd)
         self.lm_head=nn.Linear(n_embd,vocab_size)
 
     def forward(self, idx, targets=None):
@@ -116,7 +116,7 @@ class BigramLanguageModel(nn.Module):
         pos_embd=self.positional_embedding(torch.arange(T,device=device))
         x= token_embd + pos_embd
         x=self.sa_head(x) # (B,T,C)
-        x=self.forward(x) # (B,T,C)
+        x=self.ffwd(x) # (B,T,C)
         # idx and targets are both (B,T) tensor of integers
         logits = self.lm_head(x) # (B,T,C)
 
