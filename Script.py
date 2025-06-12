@@ -106,10 +106,12 @@ class Block(nn.Module):
         head_size = n_embd // n_head
         self.sa_head=MultiHeadAttention(n_head, head_size)
         self.ffwd = FeedForward(n_embd)
+        self.ln1=nn.LayerNorm(n_embd)
+        self.ln2=nn.LayerNorm(n_embd)
 
     def forward(self, x):
-        x= x+self.sa_head(x) # (B,T,C)
-        x=x+ self.ffwd(x) # (B,T,C)
+        x= x+self.sa_head(self.ln1(x)) # (B,T,C)
+        x=x+ self.ffwd(self.ln2(x)) # (B,T,C)
         return x
 
 # super simple bigram model
@@ -124,6 +126,7 @@ class BigramLanguageModel(nn.Module):
             Block(n_embd=n_embd, n_head=4),  # 4 heads
             Block(n_embd=n_embd, n_head=4),  # 4 heads
             Block(n_embd=n_embd, n_head=4),  # 4 heads
+            nn.LayerNorm(n_embd),  # final layer normalization
         )
         self.lm_head=nn.Linear(n_embd,vocab_size)
 
