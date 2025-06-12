@@ -3,14 +3,17 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 # hyperparameters
-batch_size = 32 # how many independent sequences will we process in parallel?
-block_size = 8 # what is the maximum context length for predictions?
-max_iters = 5000
-eval_interval = 500
-learning_rate = 1e-3
+batch_size = 64 # how many independent sequences will we process in parallel?
+block_size = 256 # what is the maximum context length for predictions?
+max_iters = 5000 # how many steps in total to train for?
+eval_interval = 500 # how many steps to take between evaluations?
+learning_rate = 3e-4
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-eval_iters = 200
-n_embd = 32 # the dimensionality of the character embedding vectors
+eval_iters = 200 # how many steps to take for each evaluation
+n_embd = 384 # the dimensionality of the character embedding vectors
+n_head = 6 # the number of heads in the multi-head attention layers
+n_layer = 6 # the number of layers in the transformer
+dropout = 0.2 # the dropout rate for regularization
 # ------------
 
 torch.manual_seed(1337)
